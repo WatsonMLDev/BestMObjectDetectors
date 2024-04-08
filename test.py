@@ -158,7 +158,7 @@ def load_model(model_name):
 
 # Main loop to capture webcam feed and process frames
 def main():
-    model_type = 'FasterRCNN'
+    model_type = 'YoloV8'
     # Assuming load_model is defined elsewhere and includes device in its return values
     model, device, img_size = load_model(model_type)
 

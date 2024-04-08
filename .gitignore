@@ -163,3 +163,5 @@ files/
 efficientdet/
 MobileFormer/
 env/
+src/model_repo/*
+venv/
