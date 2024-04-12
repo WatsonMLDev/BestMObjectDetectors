@@ -160,8 +160,8 @@ cython_debug/
 .idea/
 Dataset/
 files/
-efficientdet/
-MobileFormer/
 env/
-src/model_repo/*
 venv/
+/src/dataset/*
+/src/model_repo/tf_efficientdet_lite1.pth
+/src/model_repo/yolov8n.pt

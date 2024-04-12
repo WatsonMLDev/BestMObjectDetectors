@@ -1,21 +1,10 @@
+from torchvision.ops import nms
+from torchvision.transforms.functional import to_pil_image, to_tensor
+from torchvision.utils import draw_bounding_boxes
 import cv2
 import numpy as np
 import torch
 from PIL import Image
-# rcnn
-from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-# ssdlite
-from torchvision.models.detection import ssdlite320_mobilenet_v3_large, SSDLite320_MobileNet_V3_Large_Weights
-from torchvision.ops import nms
-from torchvision.transforms.functional import to_pil_image, to_tensor
-from torchvision.utils import draw_bounding_boxes
-# MobileFormer
-from MobileFormer.mobile_former import mobile_former_96m
-#EfficientDet
-from efficientdet.effdet import create_model
-#YoloV8
-from ultralytics import YOLO
-
 
 COCO_LABEL_MAP = {
     0: '__background__', 1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle',
@@ -38,7 +27,6 @@ COCO_LABEL_MAP = {
     90: 'toothbrush'
 }
 
-
 def apply_nms(orig_prediction, iou_thresh=0.3, conf_thresh=0.5):
     # Apply Non-Maximum Suppression (NMS) to avoid multiple boxes for the same object
     keep_boxes = nms(orig_prediction['boxes'], orig_prediction['scores'], iou_thresh)
@@ -59,109 +47,7 @@ def apply_nms(orig_prediction, iou_thresh=0.3, conf_thresh=0.5):
 
     return final_prediction
 
-# def apply_nms(orig_prediction, iou_thresh=0.3, conf_thresh=0.5):
-#     # Check if the prediction is empty
-#     if orig_prediction['boxes'].nelement() == 0:
-#         return orig_prediction
-#
-#     # Ensure boxes and scores have the correct shapes
-#     boxes = orig_prediction['boxes'].view(-1, 4)
-#     scores = orig_prediction['scores'].view(-1)
-#
-#     # Apply Non-Maximum Suppression (NMS)
-#     keep_boxes = nms(boxes, scores, iou_thresh)
-#
-#     final_prediction = {
-#         'boxes': boxes[keep_boxes],
-#         'scores': scores[keep_boxes],
-#         'labels': orig_prediction['labels'][keep_boxes],
-#     }
-#
-#     # Keep only predictions with a confidence score above the threshold
-#     keep_scores = final_prediction['scores'] > conf_thresh
-#     final_prediction = {
-#         'boxes': final_prediction['boxes'][keep_scores],
-#         'scores': final_prediction['scores'][keep_scores],
-#         'labels': final_prediction['labels'][keep_scores],
-#     }
-#
-#     return final_prediction
-
-
-
-def load_model(model_name):
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")  # Force CPU for now
-
-    if model_name == 'EfficientDet':
-
-        args_model = 'tf_efficientdet_lite0'  # replace with your chosen variant
-        args_pretrained = True
-        args_checkpoint = ''  # replace with path to your checkpoint, if you have one
-        args_num_classes = None
-
-        # Create the model
-        extra_args = {}
-        model = create_model(
-            args_model,
-            bench_task='predict',
-            num_classes=args_num_classes,
-            pretrained=args_pretrained,
-            checkpoint_path=args_checkpoint,
-            **extra_args,
-            **extra_args,
-        )
-
-        # model_config = model.config
-        # input_config = resolve_input_config({}, model_config)
-
-        model.to(device)
-        model.eval()
-
-        image_size = (320, 320)
-        return model, device, image_size
-
-    elif model_name == 'FasterRCNN':
-        weights = FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT
-        model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=weights, box_score_thresh=0.9)
-        model = model.to(device)  # Move model to the appropriate device
-        model.eval()
-
-        image_size = (320, 320)
-        return model, device, image_size
-
-    elif model_name == 'SSDlite':
-        weights = SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
-        model = ssdlite320_mobilenet_v3_large(weights=weights, box_score_thresh=.9)
-        model = model.to(device)  # Move model to the appropriate device
-        model.eval()
-
-        image_size = (320, 320)
-        return model, device, image_size
-
-    # elif model_name == 'MobileFormer':
-    #     model = mobile_former_96m(pretrained=False)
-    #     # Load pre-trained weights
-    #     weights_path = './mobileformer/mobileformer_weights.pth'
-    #     model.load_state_dict(torch.load(weights_path, map_location='cpu'))
-    #     return model
-
-    elif model_name == 'YoloV8':
-        model = YOLO('./files/yolov8n.pt')  # load an official model
-        model = model.to(device)  # Move model to the appropriate device
-        image_size = (640,640)
-        return model, device, image_size
-
-    else:
-        raise ValueError("Model not supported")
-
-
-# Main loop to capture webcam feed and process frames
-def main():
-    model_type = 'YoloV8'
-    # Assuming load_model is defined elsewhere and includes device in its return values
-    model, device, img_size = load_model(model_type)
-
+def test_model(model_type, model, img_size):
     cap = cv2.VideoCapture(0)
 
     while True:
@@ -174,7 +60,7 @@ def main():
 
         # Convert frame to PIL, then to tensor, and move to GPU if available
         frame_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        frame_tensor = to_tensor(frame_pil).unsqueeze(0).to(device)
+        frame_tensor = to_tensor(frame_pil).unsqueeze(0)
 
         if model_type == 'YoloV8':
             # Run YOLOv8 inference on the frame
@@ -195,7 +81,7 @@ def main():
             with torch.no_grad():
                 prediction = model(frame_tensor)[0]
                 if model_type == 'EfficientDet':
-                # Extract boxes, scores, and labels from the prediction tensor
+                    # Extract boxes, scores, and labels from the prediction tensor
                     boxes = prediction[:, :4]
                     scores = prediction[:, 4]
                     labels = prediction[:, 5].int()
@@ -236,7 +122,3 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
-
-
-if __name__ == "__main__":
-    main()
