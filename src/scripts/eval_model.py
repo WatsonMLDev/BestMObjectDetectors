@@ -43,7 +43,7 @@ def apply_nms(orig_prediction, iou_thresh=0.5, conf_thresh=0.5):
 def visualize_predictions(image, predictions):
     # Convert PIL image to tensor
 
-# Assuming 'image' is your PIL image
+    # Assuming 'image' is your PIL image
     frame = np.array(image)
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     while True:

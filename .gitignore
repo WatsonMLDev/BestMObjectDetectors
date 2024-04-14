@@ -163,5 +163,4 @@ files/
 env/
 venv/
 /src/dataset/*
-/src/model_repo/tf_efficientdet_lite1.pth
-/src/model_repo/yolov8n.pt
+/src/model_repo/*
