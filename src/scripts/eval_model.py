@@ -1,24 +1,18 @@
+import os
+import time
 from abc import ABC, abstractmethod
+
+import cv2
+import numpy as np
 import torch
-from torchvision.transforms import functional as F
-from tqdm import tqdm
-import torch
-from torchvision.datasets import CocoDetection
+import torch.nn.functional as F
 import torchvision.transforms as T
-from pycocotools.cocoeval import COCOeval
+from PIL import Image
 from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
+from torchvision.datasets import CocoDetection
 from torchvision.ops import nms
 from tqdm import tqdm
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from PIL import Image
-import os
-
-from torchvision.utils import draw_bounding_boxes
-import matplotlib.pyplot as plt
-import numpy as np
-import cv2
-import time
 
 val_images_path = './dataset/val2017'
 val_annotations_path = './dataset/annotations/instances_val2017.json'
