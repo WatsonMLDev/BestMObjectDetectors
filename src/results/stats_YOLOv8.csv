@@ -1,0 +1,2 @@
+Model,Average Latency (s),Average FPS,AP,AP50,AP75,AP_small,AP_medium,AP_large
+YOLOv8,0.054,18.41,0.237,0.308,0.264,0.067,0.257,0.370

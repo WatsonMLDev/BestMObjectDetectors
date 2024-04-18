@@ -3,6 +3,7 @@ import time
 from abc import ABC, abstractmethod
 
 import cv2
+import csv
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -13,6 +14,8 @@ from pycocotools.cocoeval import COCOeval
 from torchvision.datasets import CocoDetection
 from torchvision.ops import nms
 from tqdm import tqdm
+
+# from scripts.thermo_readings import TemperatureReader
 
 val_images_path = './dataset/val2017'
 val_annotations_path = './dataset/annotations/instances_val2017.json'
@@ -300,6 +303,9 @@ def eval_model(model_class):
     total_time = 0  # To accumulate the inference time for each image
     num_images = 0  # Total number of images processed
 
+    # Start the temperature reader in a separate thread
+    # temp_reader = TemperatureReader(cs_pin=15, sck=14, data_pin=18, units="f")
+    # temp_reader.start()
 
     # Iterate over the dataset to evaluate the model
     for image, targets in tqdm(val_loader, desc="Evaluating", unit="images"):
@@ -331,16 +337,34 @@ def eval_model(model_class):
         # Visualize the predictions
         # visualize_predictions(get_image_by_id(coco_gt, coco_predictions[-1]["image_id"]), batch_predictions)
 
+    # Stop the temperature reader
+    # temp_reader.stop()
+
     average_latency = total_time / num_images
     average_fps = num_images / total_time
 
-    print(f"Average Latency (per image): {average_latency:.3f} seconds")
-    print(f"Average FPS: {average_fps:.2f}")
-
-    coco_dt = coco_gt.loadRes(coco_predictions)
-
     # Run COCO evaluation
+    coco_dt = coco_gt.loadRes(coco_predictions)
     coco_eval = COCOeval(coco_gt, coco_dt, 'bbox')
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
+
+    # Extract COCO summary metrics
+    coco_stats = coco_eval.stats
+
+    # Save statistics to a CSV file
+    stats_file = f'results/stats_{model_type}.csv'
+    file_exists = os.path.isfile(stats_file)
+    with open(stats_file, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            # Write header if the file is new
+            writer.writerow(['Model', 'Average Latency (s)', 'Average FPS',
+                             'AP', 'AP50', 'AP75', 'AP_small', 'AP_medium', 'AP_large'])
+        # Write data
+        writer.writerow([model_class.name, f"{average_latency:.3f}", f"{average_fps:.2f}",
+                         f"{coco_stats[0]:.3f}", f"{coco_stats[1]:.3f}", f"{coco_stats[2]:.3f}",
+                         f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}"])
+
+
