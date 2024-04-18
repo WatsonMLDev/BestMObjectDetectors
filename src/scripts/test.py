@@ -22,6 +22,46 @@ import cv2
 val_images_path = './dataset/val2017'
 val_annotations_path = './dataset/annotations/instances_val2017.json'
 
+COCO_LABEL_MAP = {
+    0: '__background__', 1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle',
+    5: 'airplane', 6: 'bus', 7: 'train', 8: 'truck', 9: 'boat',
+    10: 'traffic light', 11: 'fire hydrant', 13: 'stop sign', 14: 'parking meter',
+    15: 'bench', 16: 'bird', 17: 'cat', 18: 'dog', 19: 'horse',
+    20: 'sheep', 21: 'cow', 22: 'elephant', 23: 'bear', 24: 'zebra',
+    25: 'giraffe', 27: 'backpack', 28: 'umbrella', 31: 'handbag', 32: 'tie',
+    33: 'suitcase', 34: 'frisbee', 35: 'skis', 36: 'snowboard', 37: 'sports ball',
+    38: 'kite', 39: 'baseball bat', 40: 'baseball glove', 41: 'skateboard',
+    42: 'surfboard', 43: 'tennis racket', 44: 'bottle', 46: 'wine glass',
+    47: 'cup', 48: 'fork', 49: 'knife', 50: 'spoon', 51: 'bowl',
+    52: 'banana', 53: 'apple', 54: 'sandwich', 55: 'orange', 56: 'broccoli',
+    57: 'carrot', 58: 'hot dog', 59: 'pizza', 60: 'donut', 61: 'cake',
+    62: 'chair', 63: 'couch', 64: 'potted plant', 65: 'bed', 67: 'dining table',
+    70: 'toilet', 72: 'tv', 73: 'laptop', 74: 'mouse', 75: 'remote',
+    76: 'keyboard', 77: 'cell phone', 78: 'microwave', 79: 'oven',
+    80: 'toaster', 81: 'sink', 82: 'refrigerator', 84: 'book', 85: 'clock',
+    86: 'vase', 87: 'scissors', 88: 'teddy bear', 89: 'hair drier',
+    90: 'toothbrush'
+}
+
+YOLOV8_LABEL_MAP = {
+    0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane', 5: 'bus',
+    6: 'train', 7: 'truck', 8: 'boat', 9: 'traffic light', 10: 'fire hydrant',
+    11: 'stop sign', 12: 'parking meter', 13: 'bench', 14: 'bird', 15: 'cat',
+    16: 'dog', 17: 'horse', 18: 'sheep', 19: 'cow', 20: 'elephant', 21: 'bear',
+    22: 'zebra', 23: 'giraffe', 24: 'backpack', 25: 'umbrella', 26: 'handbag',
+    27: 'tie', 28: 'suitcase', 29: 'frisbee', 30: 'skis', 31: 'snowboard',
+    32: 'sports ball', 33: 'kite', 34: 'baseball bat', 35: 'baseball glove',
+    36: 'skateboard', 37: 'surfboard', 38: 'tennis racket', 39: 'bottle',
+    40: 'wine glass', 41: 'cup', 42: 'fork', 43: 'knife', 44: 'spoon', 45: 'bowl',
+    46: 'banana', 47: 'apple', 48: 'sandwich', 49: 'orange', 50: 'broccoli',
+    51: 'carrot', 52: 'hot dog', 53: 'pizza', 54: 'donut', 55: 'cake', 56: 'chair',
+    57: 'couch', 58: 'potted plant', 59: 'bed', 60: 'dining table', 61: 'toilet',
+    62: 'tv', 63: 'laptop', 64: 'mouse', 65: 'remote', 66: 'keyboard',
+    67: 'cell phone', 68: 'microwave', 69: 'oven', 70: 'toaster', 71: 'sink',
+    72: 'refrigerator', 73: 'book', 74: 'clock', 75: 'vase', 76: 'scissors',
+    77: 'teddy bear', 78: 'hair drier', 79: 'toothbrush'
+}
+
 # Helper functions for box scaling
 def scale_bbox(box, scale_x, scale_y):
     # Scale bounding box coordinates from model input size to original image size
@@ -33,28 +73,35 @@ def scale_bbox(box, scale_x, scale_y):
     return [x_min_scaled, y_min_scaled, x_max_scaled - x_min_scaled, y_max_scaled - y_min_scaled]
 
 def visualize_predictions(image, predictions):
-    # Convert PIL image to tensor
-
-    # Assuming 'image' is your PIL image
+    # Convert PIL image to numpy array for OpenCV
     frame = np.array(image)
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+    # Draw bounding boxes and labels on the frame
+    for pred in predictions:
+        x_min, y_min, width, height = pred['bbox']
+        x_max = x_min + width
+        y_max = y_min + height
+        label = f"{pred['category_id']}: {pred['score']:.2f}"
+
+        # Draw bounding box rectangle
+        cv2.rectangle(frame, (int(x_min), int(y_min)), (int(x_max), int(y_max)), (0, 255, 0), 2)
+
+        # Put label above the bounding box
+        cv2.putText(frame, label, (int(x_min), int(y_min) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+    # Display the annotated frame
+    cv2.imshow("Predictions", frame)
+
+    # Loop to keep the window open until 'q' is pressed
     while True:
-        for pred in predictions:
-            x_min, y_min, width, height = pred['bbox']
-            x_max = x_min + width
-            y_max = y_min + height
-            label = f"{pred['category_id']}: {pred['score']:.2f}"
-
-            # Draw bounding box rectangle
-            cv2.rectangle(frame, (int(x_min), int(y_min)), (int(x_max), int(y_max)), (0, 255, 0), 2)
-
-            # Put label above the bounding box
-            cv2.putText(frame, label, (int(x_min), int(y_min) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-        # Display the annotated frame
-        cv2.imshow("Predictions", frame)
+        # Display the frame for 1 ms, and check if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
-            return
+            cv2.destroyAllWindows()
+            break
+
+    # When everything is done, release the window
+    cv2.destroyAllWindows()
 
 
 def get_image_by_id(coco, image_id):
@@ -67,6 +114,23 @@ def get_image_by_id(coco, image_id):
     # Load and return the image
     image = Image.open(image_path)
     return image
+
+def translate_labels(label_ids):
+    """
+    Translates a tensor of label IDs from the YOLOv8 format to the COCO format.
+    """
+    coco_label_ids = []
+    for label_id in label_ids:
+        if label_id.item() in YOLOV8_LABEL_MAP:
+            origional_name = YOLOV8_LABEL_MAP[label_id.item()]
+
+            #with the value, get the key
+            coco_label_id = [key for key, value in COCO_LABEL_MAP.items() if value == origional_name][0]
+
+            coco_label_ids.append(coco_label_id)
+        else:
+            coco_label_ids.append(None)
+    return torch.tensor(coco_label_ids, dtype=torch.int32)
 
 # Define a base model evaluator
 class ModelEvaluator(ABC):
@@ -97,11 +161,32 @@ class ModelEvaluator(ABC):
         x_min, y_min, x_max, y_max = box
         return [x_min, y_min, x_max - x_min, y_max - y_min]
 
+    def apply_nms(self, orig_prediction, iou_thresh=0.5, conf_thresh=0.5):
+        # Apply Non-Maximum Suppression (NMS) to avoid multiple boxes for the same object
+        keep_boxes = nms(orig_prediction['boxes'], orig_prediction['scores'], iou_thresh)
+
+        final_prediction = {
+            'boxes': orig_prediction['boxes'][keep_boxes],
+            'scores': orig_prediction['scores'][keep_boxes],
+            'labels': orig_prediction['labels'][keep_boxes],
+        }
+
+        # Keep only predictions with a confidence score above the threshold
+        keep_scores = final_prediction['scores'] > conf_thresh
+        final_prediction = {
+            'boxes': final_prediction['boxes'][keep_scores],
+            'scores': final_prediction['scores'][keep_scores],
+            'labels': final_prediction['labels'][keep_scores],
+        }
+
+        return final_prediction
+
     def prepare_predictions(self, targets, outputs):
         predictions = []
         for index, (target, output) in enumerate(zip(targets, outputs)):
             output = self.parse_output(output)
             boxes = self.scale_boxes(output['boxes'], index)
+            # boxes = output['boxes']
             scores = output['scores'].cpu().numpy().tolist()
             labels = output['labels'].cpu().numpy().tolist()
 
@@ -132,31 +217,43 @@ class EfficientDetEvaluator(ModelEvaluator):
             'scores': scores,
             'labels': labels
         }
-        return self.apply_nms(output)
+        return self.apply_nms(output, iou_thresh=0.7, conf_thresh=0.7)
 
     def scale_boxes(self, boxes, index):
         scale_x, scale_y = self.scale_factors[index]
         return [scale_bbox(box, scale_x, scale_y) for box in boxes]
 
-    def apply_nms(self, orig_prediction, iou_thresh=0.5, conf_thresh=0.5):
-        # Apply Non-Maximum Suppression (NMS) to avoid multiple boxes for the same object
-        keep_boxes = nms(orig_prediction['boxes'], orig_prediction['scores'], iou_thresh)
 
-        final_prediction = {
-            'boxes': orig_prediction['boxes'][keep_boxes],
-            'scores': orig_prediction['scores'][keep_boxes],
-            'labels': orig_prediction['labels'][keep_boxes],
+class YoloEvaluator(ModelEvaluator):
+    def resize_images(self, images):
+        if isinstance(self.img_size, int):
+            target_size = (self.img_size, self.img_size)
+        else:
+            target_size = self.img_size
+
+        resized_images = [F.interpolate(image.unsqueeze(0), size=target_size, mode='bilinear', align_corners=False) for image in images]
+        images_tensor = torch.cat(resized_images, dim=0)
+        return images_tensor
+
+    def calculate_scale_factors(self, original_image_sizes):
+        return [(size[1] / self.img_size[0], size[0] / self.img_size[1]) for size in original_image_sizes]
+ 
+    def parse_output(self, output):
+        boxes = output.boxes.xyxy
+        scores = output.boxes.conf
+        labels = translate_labels(output.boxes.cls.int())
+        output = {
+            'boxes': boxes,
+            'scores': scores,
+            'labels': labels
         }
+        return output
 
-        # Keep only predictions with a confidence score above the threshold
-        keep_scores = final_prediction['scores'] > conf_thresh
-        final_prediction = {
-            'boxes': final_prediction['boxes'][keep_scores],
-            'scores': final_prediction['scores'][keep_scores],
-            'labels': final_prediction['labels'][keep_scores],
-        }
 
-        return final_prediction
+    def scale_boxes(self, boxes, index):
+        scale_x, scale_y = self.scale_factors[index]
+        return [scale_bbox(box, scale_x, scale_y) for box in boxes]
+
 
 # Define a default evaluator for other models
 class DefaultModelEvaluator(ModelEvaluator):
@@ -191,26 +288,37 @@ def eval_model(model_class):
     # Select the appropriate evaluator based on the model_type
     if model_type == 'EfficientDet':
         evaluator = EfficientDetEvaluator(model, img_size)
+    elif model_type == 'YOLOv8':
+        evaluator = YoloEvaluator(model, img_size)
+        evaluator.model.to('cpu')
     else:
         evaluator = DefaultModelEvaluator(model, img_size)
 
+    counter = 0
     # Iterate over the dataset to evaluate the model
-    for images, targets in tqdm(val_loader, desc="Evaluating", unit="batch"):
-        original_image_sizes = [img.shape[-2:] for img in images]
-        images = evaluator.resize_images(images)
+    for image, targets in tqdm(val_loader, desc="Evaluating", unit="images"):
+        original_image_sizes = [img.shape[-2:] for img in image]
+        image = evaluator.resize_images(image)
         evaluator.scale_factors = evaluator.calculate_scale_factors(original_image_sizes)
 
+
         with torch.no_grad():
-            outputs = model(images)
+            if model_type == 'YOLOv8':
+                outputs = model.predict(image, verbose=False, conf=0.5, iou=0.5)
+            else:
+                outputs = model(image)
 
         # Prepare predictions using the evaluator
         batch_predictions = evaluator.prepare_predictions(targets, outputs)
         coco_predictions.extend(batch_predictions)
 
+
         # Visualize the predictions
-        # if len(coco_predictions) < 1000000000:  # adjust this number to print as many predictions as you want to check
-        #     visualize_predictions(get_image_by_id(coco_gt, coco_predictions[0]["image_id"]), batch_predictions)
-        #     return
+        # if counter > 1:  # adjust this number to print as many predictions as you want to check
+            # visualize_predictions(get_image_by_id(coco_gt, coco_predictions[-1]["image_id"]), batch_predictions)
+        # counter += 1
+
+
 
     # Further processing of coco_predictions can be done here as needed
     # This could include saving the predictions, evaluating metrics, etc.

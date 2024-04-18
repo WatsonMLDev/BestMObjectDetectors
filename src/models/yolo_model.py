@@ -8,4 +8,4 @@ class YOLOv8Model:
         self.name = 'YOLOv8'
 
     def create_model(self):
-        self.model = YOLO(self.model_path)
+        self.model = YOLO(self.model_path,verbose=False)

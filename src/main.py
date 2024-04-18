@@ -4,7 +4,6 @@ from models.ssdlite_model import SSDliteModel
 from models.yolo_model import YOLOv8Model
 import scripts.test_models_work as test_models_work
 import scripts.eval_model as eval_model
-import scripts.test as test
 import argparse
 
 
@@ -40,8 +39,7 @@ if __name__ == "__main__":
         model = load_model('EfficientDet')
         test_models_work.test_model(model.name, model.model, model.image_size)
     elif task == 'eval':
-        model = load_model('EfficientDet')
-        # eval_model.eval_model(model)
-        test.eval_model(model)
+        model = load_model('YOLOv8')
+        eval_model.eval_model(model)
     else:
         raise ValueError(f"Task {task} not recognized")
