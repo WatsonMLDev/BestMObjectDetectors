@@ -165,3 +165,7 @@ class TemperatureReader:
     def average_ambient_temperature(self):
         return sum(self.ambient_temps) / len(self.ambient_temps) if self.ambient_temps else None
 
+    @property
+    def average_soc_temperature(self):
+        return sum(temp for _, temp in self.soc_temps) / len(self.soc_temps) if self.soc_temps else None
+

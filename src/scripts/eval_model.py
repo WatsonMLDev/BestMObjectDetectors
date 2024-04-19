@@ -16,7 +16,7 @@ from torchvision.datasets import CocoDetection
 from torchvision.ops import nms
 from tqdm import tqdm
 
-from scripts.thermo_readings import TemperatureReader
+# from scripts.thermo_readings import TemperatureReader
 
 val_images_path = './dataset/val2017'
 val_annotations_path = './dataset/annotations/instances_val2017.json'
@@ -368,10 +368,10 @@ def eval_model(model_class):
         if not file_exists:
             # Write header if the file is new
             writer.writerow(['Model', 'Average Latency (s)', 'Average FPS',
-                             'AP', 'AP50', 'AP75', 'AP_small', 'AP_medium', 'AP_large', 'start_time', 'end_time'])
+                             'AP', 'AP50', 'AP75', 'AP_small', 'AP_medium', 'AP_large', 'start_time', 'end_time', 'average_soc_temp'])
         # Write data
         writer.writerow([model_class.name, f"{average_latency:.3f}", f"{average_fps:.2f}",
                          f"{coco_stats[0]:.3f}", f"{coco_stats[1]:.3f}", f"{coco_stats[2]:.3f}",
-                         f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}", start_of_test, end_of_test])
+                         f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}", start_of_test, end_of_test, temp_reader.average_soc_temp])
 
 
