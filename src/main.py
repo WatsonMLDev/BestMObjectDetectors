@@ -86,7 +86,7 @@ if __name__ == "__main__":
             # Evaluate the model at the current frequency
             eval_model.eval_model(model)
 
-            # Optional: Add a delay for thermal and system stabilization if needed
-            time.sleep(30)  # Sleep for 30 seconds, adjust as needed
+            # Added a delay for thermal and system stabilization if needed
+            time.sleep(60)  # Sleep for 60 seconds
     else:
         raise ValueError(f"Task {task} not recognized")
