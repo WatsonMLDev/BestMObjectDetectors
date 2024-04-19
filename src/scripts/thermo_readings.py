@@ -138,7 +138,7 @@ class TemperatureReader:
             self.soc_temps.append((time.time(), soc_temp))  # Save time and SoC temperature
 
             # Print temperatures
-            print(f"Ambient: {ambient_temp} {self.thermocouple.units}, SoC: {soc_temp} C")
+            # print(f"Ambient: {ambient_temp} {self.thermocouple.units}, SoC: {soc_temp} C")
 
             # Sleep for some time between readings
             time.sleep(1)

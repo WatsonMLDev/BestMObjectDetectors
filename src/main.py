@@ -83,10 +83,12 @@ if __name__ == "__main__":
                 print(f"Fatal error: Frequency {freq} kHz could not be set correctly after multiple attempts.")
                 exit(1)  # Exit the program with an error code
 
+            time.sleep(30)
+
             # Evaluate the model at the current frequency
             eval_model.eval_model(model)
 
             # Added a delay for thermal and system stabilization if needed
-            time.sleep(60)  # Sleep for 60 seconds
+            time.sleep(90)  # Sleep for 90 seconds
     else:
         raise ValueError(f"Task {task} not recognized")
