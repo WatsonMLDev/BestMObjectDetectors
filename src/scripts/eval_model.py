@@ -406,7 +406,7 @@ def eval_model(model_class):
     process_images(val_loader, evaluator, temp_predictions_file, model_type)
 
     # Stop the temperature reader and capture average temperature
-    temp_reader.stop()
+    temp_reader.stop(model_type)
 
     # Load predictions from temporary file for COCO evaluation
     coco_predictions = load_predictions(temp_predictions_file)
