@@ -473,6 +473,8 @@ def process_images(val_loader, evaluator, temp_predictions_file, model_type):
             time_taken = end_time - start_time
             total_time += time_taken
 
+            num_images += 1  # Assuming batch_size=1
+
             # Serialize the output with pickle and write the length followed by the data
             data = pickle.dumps(batch_predictions)
             f.write(len(data).to_bytes(4, byteorder='big'))
