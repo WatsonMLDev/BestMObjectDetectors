@@ -42,23 +42,27 @@ class MAX6675(object):
         return getattr(self, "to_" + self.units)(self.data_to_tc_temperature())
 
     def read(self):
-        '''Reads 16 bits of the SPI bus & stores as an integer in self.data.'''
-        bytesin = 0
-        # Select the chip
-        GPIO.output(self.cs_pin, GPIO.LOW)
-        # Read in 16 bits
-        for i in range(16):
-            GPIO.output(self.clock_pin, GPIO.LOW)
+        try:
+            '''Reads 16 bits of the SPI bus & stores as an integer in self.data.'''
+            bytesin = 0
+            # Select the chip
+            GPIO.output(self.cs_pin, GPIO.LOW)
+            # Read in 16 bits
+            for i in range(16):
+                GPIO.output(self.clock_pin, GPIO.LOW)
+                time.sleep(0.001)
+                bytesin = bytesin << 1
+                if (GPIO.input(self.data_pin)):
+                    bytesin = bytesin | 1
+                GPIO.output(self.clock_pin, GPIO.HIGH)
             time.sleep(0.001)
-            bytesin = bytesin << 1
-            if (GPIO.input(self.data_pin)):
-                bytesin = bytesin | 1
-            GPIO.output(self.clock_pin, GPIO.HIGH)
-        time.sleep(0.001)
-        # Unselect the chip
-        GPIO.output(self.cs_pin, GPIO.HIGH)
-        # Save data
-        self.data = bytesin
+            # Unselect the chip
+            GPIO.output(self.cs_pin, GPIO.HIGH)
+            # Save data
+            self.data = bytesin
+        except Exception as e:
+            print(f"Error reading SPI bus: {e}")
+
 
     def checkErrors(self, data_16 = None):
         '''Checks errors on bit D2'''
@@ -165,7 +169,4 @@ class TemperatureReader:
     def average_ambient_temperature(self):
         return sum(self.ambient_temps) / len(self.ambient_temps) if self.ambient_temps else None
 
-    @property
-    def average_soc_temperature(self):
-        return sum(temp for _, temp in self.soc_temps) / len(self.soc_temps) if self.soc_temps else None
 

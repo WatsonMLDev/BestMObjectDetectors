@@ -429,15 +429,12 @@ def eval_model(model_class):
 
     # Load predictions from temporary file for COCO evaluation
     coco_predictions = load_predictions(temp_predictions_file)
-    print("Loaded predictions:", coco_predictions)
-    if not coco_predictions:
-        print("No predictions to evaluate.")
 
     # Perform COCO evaluation and log results
     coco_stats = perform_coco_evaluation(coco_gt, coco_predictions)
 
     # Save statistics to a CSV file and log additional data
-    save_results(coco_stats, model_type, start_of_test, datetime.datetime.now(), temp_reader.average_soc_temp, average_latency, average_fps)
+    save_results(coco_stats, model_type, start_of_test, datetime.datetime.now(), temp_reader.average_ambient_temperature, average_latency, average_fps)
 
 def get_evaluator(model_type, model, img_size):
     if model_type == 'EfficientDet':
@@ -519,7 +516,7 @@ def perform_coco_evaluation(coco_gt, coco_predictions):
         print(f"Error during COCO evaluation: {e}")
         return [0, 0, 0, 0, 0, 0]
 
-def save_results(coco_stats, model_type, start_of_test, end_of_test, average_soc_temp, average_latency, average_fps):
+def save_results(coco_stats, model_type, start_of_test, end_of_test, average_ambient_temp, average_latency, average_fps):
     stats_file = f'results/stats_{model_type}.csv'
     file_exists = os.path.isfile(stats_file)
     with open(stats_file, 'a', newline='') as file:
@@ -527,8 +524,8 @@ def save_results(coco_stats, model_type, start_of_test, end_of_test, average_soc
         if not file_exists:
             # Write header if the file is new
             writer.writerow(['Model', 'Average Latency (s)', 'Average FPS',
-                             'AP', 'AP50', 'AP75', 'AP_small', 'AP_medium', 'AP_large', 'start_time', 'end_time', 'average_soc_temp'])
+                             'AP', 'AP50', 'AP75', 'AP_small', 'AP_medium', 'AP_large', 'start_time', 'end_time', 'average_ambient_temp'])
         # Write data
         writer.writerow([model_type, f"{average_latency:.3f}", f"{average_fps:.2f}",
                          f"{coco_stats[0]:.3f}", f"{coco_stats[1]:.3f}", f"{coco_stats[2]:.3f}",
-                         f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}", start_of_test, end_of_test, average_soc_temp])
+                         f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}", start_of_test, end_of_test, average_ambient_temp])
