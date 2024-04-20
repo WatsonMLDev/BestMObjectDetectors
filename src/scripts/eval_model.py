@@ -5,6 +5,7 @@ import time
 import json
 from abc import ABC, abstractmethod
 import pickle
+import shutil
 
 import cv2
 import numpy as np
@@ -392,7 +393,22 @@ def eval_model(model_class):
 
     # File for temporarily storing predictions
     temp_predictions_file = f'temp_predictions_{model_type}.pkl'
-    #erases the data in the file
+
+    # Backup old predictions file before erasing
+    backup_dir = 'results/backups'
+    if not os.path.exists(backup_dir):
+        os.makedirs(backup_dir)  # Ensure the backup directory exists
+
+    # Create a timestamp for the backup file
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_file = os.path.join(backup_dir, f"backup_{model_type}_{timestamp}.pkl")
+
+    # Check if the current predictions file exists and back it up
+    if os.path.exists(temp_predictions_file):
+        shutil.move(temp_predictions_file, backup_file)
+        print(f"Backed up old predictions to {backup_file}")
+
+    # Create a new, empty predictions file
     open(temp_predictions_file, 'wb').close()
 
     # Select the appropriate evaluator based on the model_type
@@ -403,20 +419,25 @@ def eval_model(model_class):
     temp_reader.start()
 
     # Process images and store results to temporary file
-    process_images(val_loader, evaluator, temp_predictions_file, model_type)
+    total_time, num_images = process_images(val_loader, evaluator, temp_predictions_file, model_type)
+
+    average_latency = total_time / num_images
+    average_fps = num_images / total_time
 
     # Stop the temperature reader and capture average temperature
     temp_reader.stop(model_type)
 
     # Load predictions from temporary file for COCO evaluation
     coco_predictions = load_predictions(temp_predictions_file)
-
+    print("Loaded predictions:", coco_predictions)
+    if not coco_predictions:
+        print("No predictions to evaluate.")
 
     # Perform COCO evaluation and log results
     coco_stats = perform_coco_evaluation(coco_gt, coco_predictions)
 
     # Save statistics to a CSV file and log additional data
-    save_results(coco_stats, model_type, start_of_test, datetime.datetime.now(), temp_reader.average_soc_temp)
+    save_results(coco_stats, model_type, start_of_test, datetime.datetime.now(), temp_reader.average_soc_temp, average_latency, average_fps)
 
 def get_evaluator(model_type, model, img_size):
     if model_type == 'EfficientDet':
@@ -429,21 +450,34 @@ def get_evaluator(model_type, model, img_size):
         return DefaultModelEvaluator(model, img_size)
 
 def process_images(val_loader, evaluator, temp_predictions_file, model_type):
+    total_time = 0  # To accumulate the inference time for each image
+    num_images = 0  # Total number of images processed
     with open(temp_predictions_file, 'wb') as f:
         for image, targets in tqdm(val_loader, desc="Evaluating", unit="images"):
             original_image_sizes = [img.shape[-2:] for img in image]
             image = evaluator.resize_images(image)
             evaluator.scale_factors = evaluator.calculate_scale_factors(original_image_sizes)
 
+            # Start time
+            start_time = time.time()
+
             with torch.no_grad():
                 outputs = model_predict(evaluator, image, model_type)
 
             batch_predictions = evaluator.prepare_predictions(targets, outputs)
 
+            # End time
+            end_time = time.time()
+
+            # Calculate the time taken and accumulate
+            time_taken = end_time - start_time
+            total_time += time_taken
+
             # Serialize the output with pickle and write the length followed by the data
             data = pickle.dumps(batch_predictions)
             f.write(len(data).to_bytes(4, byteorder='big'))
             f.write(data)
+    return total_time, num_images
 
 def model_predict(evaluator, image, model_type):
     if model_type == 'YOLOv8':
@@ -472,20 +506,27 @@ def load_predictions(temp_predictions_file):
 
 
 def perform_coco_evaluation(coco_gt, coco_predictions):
-    coco_dt = coco_gt.loadRes(coco_predictions)
-    coco_eval = COCOeval(coco_gt, coco_dt, 'bbox')
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
-    return coco_eval.stats
+    try:
+        coco_dt = coco_gt.loadRes(coco_predictions)
+        coco_eval = COCOeval(coco_gt, coco_dt, 'bbox')
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
+        return coco_eval.stats
+    except Exception as e:
+        print(f"Error during COCO evaluation: {e}")
+        return [0, 0, 0, 0, 0, 0]
 
-def save_results(coco_stats, model_type, start_of_test, end_of_test, average_soc_temp):
+def save_results(coco_stats, model_type, start_of_test, end_of_test, average_soc_temp, average_latency, average_fps):
     stats_file = f'results/stats_{model_type}.csv'
     file_exists = os.path.isfile(stats_file)
     with open(stats_file, 'a', newline='') as file:
         writer = csv.writer(file)
         if not file_exists:
-            writer.writerow(['Model', 'AP', 'AP50', 'AP75', 'AP_small', 'AP_medium', 'AP_large', 'start_time', 'end_time', 'average_soc_temp'])
-        writer.writerow([model_type, f"{coco_stats[0]:.3f}", f"{coco_stats[1]:.3f}", f"{coco_stats[2]:.3f}",
-                         f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}",
-                         start_of_test, end_of_test, average_soc_temp])
+            # Write header if the file is new
+            writer.writerow(['Model', 'Average Latency (s)', 'Average FPS',
+                             'AP', 'AP50', 'AP75', 'AP_small', 'AP_medium', 'AP_large', 'start_time', 'end_time', 'average_soc_temp'])
+        # Write data
+        writer.writerow([model_type, f"{average_latency:.3f}", f"{average_fps:.2f}",
+                         f"{coco_stats[0]:.3f}", f"{coco_stats[1]:.3f}", f"{coco_stats[2]:.3f}",
+                         f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}", start_of_test, end_of_test, average_soc_temp])
