@@ -2,7 +2,9 @@ import csv
 import datetime
 import os
 import time
+import json
 from abc import ABC, abstractmethod
+import pickle
 
 import cv2
 import numpy as np
@@ -16,7 +18,7 @@ from torchvision.datasets import CocoDetection
 from torchvision.ops import nms
 from tqdm import tqdm
 
-# from scripts.thermo_readings import TemperatureReader
+from scripts.thermo_readings import TemperatureReader
 
 val_images_path = './dataset/val2017'
 val_annotations_path = './dataset/annotations/instances_val2017.json'
@@ -279,99 +281,211 @@ class DefaultModelEvaluator(ModelEvaluator):
         return [self.convert_to_xywh(box) for box in boxes]
 
 
+# def eval_model(model_class):
+#     model_type = model_class.name
+#     model, img_size = model_class.model, model_class.image_size
+#
+#     #get date and time of evaluation
+#     start_of_test = datetime.datetime.now()
+#
+#     # Initialize the validation dataset and loader
+#     val_dataset = CocoDetection(val_images_path, val_annotations_path, transform=T.ToTensor())
+#     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
+#
+#     # Initialize COCO ground truth API and predictions list
+#     coco_gt = COCO(val_annotations_path)
+#     coco_predictions = []
+#
+#     # Select the appropriate evaluator based on the model_type
+#     if model_type == 'EfficientDet':
+#         evaluator = EfficientDetEvaluator(model, img_size)
+#     elif model_type == 'YOLOv8':
+#         evaluator = YoloEvaluator(model, img_size)
+#         evaluator.model.to('cpu')
+#     else:
+#         evaluator = DefaultModelEvaluator(model, img_size)
+#
+#
+#     total_time = 0  # To accumulate the inference time for each image
+#     num_images = 0  # Total number of images processed
+#
+#     # Start the temperature reader in a separate thread
+#     temp_reader = TemperatureReader(cs_pin=15, sck=14, data_pin=18, units="f")
+#     temp_reader.start()
+#
+#     # Iterate over the dataset to evaluate the model
+#     for image, targets in tqdm(val_loader, desc="Evaluating", unit="images"):
+#         original_image_sizes = [img.shape[-2:] for img in image]
+#         image = evaluator.resize_images(image)
+#         evaluator.scale_factors = evaluator.calculate_scale_factors(original_image_sizes)
+#
+#         # Start time
+#         start_time = time.time()
+#
+#         with torch.no_grad():
+#             if model_type == 'YOLOv8':
+#                 outputs = model.predict(image, verbose=False, conf=0.5, iou=0.5)
+#             else:
+#                 outputs = model(image)
+#
+#         # End time
+#         end_time = time.time()
+#
+#         # Calculate the time taken and accumulate
+#         time_taken = end_time - start_time
+#         total_time += time_taken
+#         num_images += 1  # Assuming batch_size=1
+#
+#         # Prepare predictions using the evaluator
+#         batch_predictions = evaluator.prepare_predictions(targets, outputs)
+#         coco_predictions.extend(batch_predictions)
+#
+#         # Visualize the predictions
+#         # visualize_predictions(get_image_by_id(coco_gt, coco_predictions[-1]["image_id"]), batch_predictions)
+#
+#     # Stop the temperature reader
+#     temp_reader.stop()
+#
+#     #get the ending date and time of evaluation
+#     end_of_test = datetime.datetime.now()
+#
+#     average_latency = total_time / num_images
+#     average_fps = num_images / total_time
+#
+#     # Run COCO evaluation
+#     coco_dt = coco_gt.loadRes(coco_predictions)
+#     coco_eval = COCOeval(coco_gt, coco_dt, 'bbox')
+#     coco_eval.evaluate()
+#     coco_eval.accumulate()
+#     coco_eval.summarize()
+#
+#     # Extract COCO summary metrics
+#     coco_stats = coco_eval.stats
+#
+#     # Save statistics to a CSV file
+#     stats_file = f'results/stats_{model_type}.csv'
+#     file_exists = os.path.isfile(stats_file)
+#     with open(stats_file, mode='a', newline='') as file:
+#         writer = csv.writer(file)
+#         if not file_exists:
+#             # Write header if the file is new
+#             writer.writerow(['Model', 'Average Latency (s)', 'Average FPS',
+#                              'AP', 'AP50', 'AP75', 'AP_small', 'AP_medium', 'AP_large', 'start_time', 'end_time', 'average_soc_temp'])
+#         # Write data
+#         writer.writerow([model_class.name, f"{average_latency:.3f}", f"{average_fps:.2f}",
+#                          f"{coco_stats[0]:.3f}", f"{coco_stats[1]:.3f}", f"{coco_stats[2]:.3f}",
+#                          f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}", start_of_test, end_of_test, temp_reader.average_soc_temp])
+
 def eval_model(model_class):
     model_type = model_class.name
     model, img_size = model_class.model, model_class.image_size
 
-    #get date and time of evaluation
+    # Get date and time of evaluation
     start_of_test = datetime.datetime.now()
 
     # Initialize the validation dataset and loader
     val_dataset = CocoDetection(val_images_path, val_annotations_path, transform=T.ToTensor())
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
 
-    # Initialize COCO ground truth API and predictions list
+    # Initialize COCO ground truth API
     coco_gt = COCO(val_annotations_path)
-    coco_predictions = []
+
+    # File for temporarily storing predictions
+    temp_predictions_file = f'temp_predictions_{model_type}.pkl'
+    #erases the data in the file
+    open(temp_predictions_file, 'wb').close()
 
     # Select the appropriate evaluator based on the model_type
-    if model_type == 'EfficientDet':
-        evaluator = EfficientDetEvaluator(model, img_size)
-    elif model_type == 'YOLOv8':
-        evaluator = YoloEvaluator(model, img_size)
-        evaluator.model.to('cpu')
-    else:
-        evaluator = DefaultModelEvaluator(model, img_size)
-
-
-    total_time = 0  # To accumulate the inference time for each image
-    num_images = 0  # Total number of images processed
+    evaluator = get_evaluator(model_type, model, img_size)
 
     # Start the temperature reader in a separate thread
     temp_reader = TemperatureReader(cs_pin=15, sck=14, data_pin=18, units="f")
     temp_reader.start()
 
-    # Iterate over the dataset to evaluate the model
-    for image, targets in tqdm(val_loader, desc="Evaluating", unit="images"):
-        original_image_sizes = [img.shape[-2:] for img in image]
-        image = evaluator.resize_images(image)
-        evaluator.scale_factors = evaluator.calculate_scale_factors(original_image_sizes)
+    # Process images and store results to temporary file
+    process_images(val_loader, evaluator, temp_predictions_file, model_type)
 
-        # Start time
-        start_time = time.time()
-
-        with torch.no_grad():
-            if model_type == 'YOLOv8':
-                outputs = model.predict(image, verbose=False, conf=0.5, iou=0.5)
-            else:
-                outputs = model(image)
-
-        # End time
-        end_time = time.time()
-
-        # Calculate the time taken and accumulate
-        time_taken = end_time - start_time
-        total_time += time_taken
-        num_images += 1  # Assuming batch_size=1
-
-        # Prepare predictions using the evaluator
-        batch_predictions = evaluator.prepare_predictions(targets, outputs)
-        coco_predictions.extend(batch_predictions)
-
-        # Visualize the predictions
-        # visualize_predictions(get_image_by_id(coco_gt, coco_predictions[-1]["image_id"]), batch_predictions)
-
-    # Stop the temperature reader
+    # Stop the temperature reader and capture average temperature
     temp_reader.stop()
 
-    #get the ending date and time of evaluation
-    end_of_test = datetime.datetime.now()
+    # Load predictions from temporary file for COCO evaluation
+    coco_predictions = load_predictions(temp_predictions_file)
 
-    average_latency = total_time / num_images
-    average_fps = num_images / total_time
 
-    # Run COCO evaluation
+    # Perform COCO evaluation and log results
+    coco_stats = perform_coco_evaluation(coco_gt, coco_predictions)
+
+    # Save statistics to a CSV file and log additional data
+    save_results(coco_stats, model_type, start_of_test, datetime.datetime.now(), temp_reader.average_soc_temp)
+
+def get_evaluator(model_type, model, img_size):
+    if model_type == 'EfficientDet':
+        return EfficientDetEvaluator(model, img_size)
+    elif model_type == 'YOLOv8':
+        evaluator = YoloEvaluator(model, img_size)
+        evaluator.model.to('cpu')
+        return evaluator
+    else:
+        return DefaultModelEvaluator(model, img_size)
+
+def process_images(val_loader, evaluator, temp_predictions_file, model_type):
+    with open(temp_predictions_file, 'wb') as f:
+        for image, targets in tqdm(val_loader, desc="Evaluating", unit="images"):
+            original_image_sizes = [img.shape[-2:] for img in image]
+            image = evaluator.resize_images(image)
+            evaluator.scale_factors = evaluator.calculate_scale_factors(original_image_sizes)
+
+            with torch.no_grad():
+                outputs = model_predict(evaluator, image, model_type)
+
+            batch_predictions = evaluator.prepare_predictions(targets, outputs)
+
+            # Serialize the output with pickle and write the length followed by the data
+            data = pickle.dumps(batch_predictions)
+            f.write(len(data).to_bytes(4, byteorder='big'))
+            f.write(data)
+
+def model_predict(evaluator, image, model_type):
+    if model_type == 'YOLOv8':
+        outputs = evaluator.model.predict(image, verbose=False, conf=0.5, iou=0.5)
+    else:
+        outputs = evaluator.model(image)
+    return outputs
+
+
+def load_predictions(temp_predictions_file):
+    predictions = []
+    with open(temp_predictions_file, 'rb') as f:
+        while True:
+            length_bytes = f.read(4)
+            if not length_bytes:
+                break  # End of file reached
+            length = int.from_bytes(length_bytes, byteorder='big')
+            data = f.read(length)
+            if not data:
+                break  # Ensure that data read matches the length expected
+            prediction = pickle.loads(data)
+            predictions.extend(prediction)  # Make sure to extend, not append
+    return predictions
+
+
+
+
+def perform_coco_evaluation(coco_gt, coco_predictions):
     coco_dt = coco_gt.loadRes(coco_predictions)
     coco_eval = COCOeval(coco_gt, coco_dt, 'bbox')
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
+    return coco_eval.stats
 
-    # Extract COCO summary metrics
-    coco_stats = coco_eval.stats
-
-    # Save statistics to a CSV file
+def save_results(coco_stats, model_type, start_of_test, end_of_test, average_soc_temp):
     stats_file = f'results/stats_{model_type}.csv'
     file_exists = os.path.isfile(stats_file)
-    with open(stats_file, mode='a', newline='') as file:
+    with open(stats_file, 'a', newline='') as file:
         writer = csv.writer(file)
         if not file_exists:
-            # Write header if the file is new
-            writer.writerow(['Model', 'Average Latency (s)', 'Average FPS',
-                             'AP', 'AP50', 'AP75', 'AP_small', 'AP_medium', 'AP_large', 'start_time', 'end_time', 'average_soc_temp'])
-        # Write data
-        writer.writerow([model_class.name, f"{average_latency:.3f}", f"{average_fps:.2f}",
-                         f"{coco_stats[0]:.3f}", f"{coco_stats[1]:.3f}", f"{coco_stats[2]:.3f}",
-                         f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}", start_of_test, end_of_test, temp_reader.average_soc_temp])
-
-
+            writer.writerow(['Model', 'AP', 'AP50', 'AP75', 'AP_small', 'AP_medium', 'AP_large', 'start_time', 'end_time', 'average_soc_temp'])
+        writer.writerow([model_type, f"{coco_stats[0]:.3f}", f"{coco_stats[1]:.3f}", f"{coco_stats[2]:.3f}",
+                         f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}",
+                         start_of_test, end_of_test, average_soc_temp])
