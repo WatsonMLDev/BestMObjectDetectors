@@ -25,7 +25,7 @@ def check_frequency(freq):
     # Check if the frequency has been set correctly
     for cpu in range(4):
         with open(f"/sys/devices/system/cpu/cpu{cpu}/cpufreq/scaling_cur_freq", "r") as f:
-            set_freq = int(f.readline().strip())
+            set_freq = int(f.readline(5_000_000).strip())
             if set_freq != freq:
                 return False
     return True
