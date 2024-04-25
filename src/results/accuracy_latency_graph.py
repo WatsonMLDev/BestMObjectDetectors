@@ -21,7 +21,7 @@ def plot_contention_graphs(all_accuracies, all_latencies, file_paths, contention
 
     # Define unique markers and colors for each model
     markers = ['o', '^', 's', 'D']  # Assuming there are at most 4 models for simplicity
-    colors = ['blue', 'green', 'red', 'purple']  # Different color for each model
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']   # Different color for each model
 
     # Map file paths to markers and colors
     model_markers_colors = {file_path: (markers[i], colors[i]) for i, file_path in enumerate(file_paths)}
@@ -54,8 +54,8 @@ def plot_contention_graphs(all_accuracies, all_latencies, file_paths, contention
 
 # Define the file paths for the CSV files (add more if you have additional models)
 file_paths = [
-    './Yolo/stats_YOLOv8.csv',
     './EfficientDet/stats_EfficientDet.csv',
+    './Yolo/stats_YOLOv8.csv',
     './FasterRCNN/stats_FasterRCNN.csv',
     './SSDLite/stats_SSDlite.csv'
     # '/path/to/your/other_model.csv',  # Add additional file paths as necessary

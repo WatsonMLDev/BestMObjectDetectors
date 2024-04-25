@@ -14,7 +14,7 @@ def load_temperature_data(paths):
 # Function to plot temperature data with flexible annotations for average room temperature
 def plot_temperature_data_flexible(temp_data_list, stats_data_list, model_names, contention_levels):
     fig, axs = plt.subplots(1, len(contention_levels), figsize=(20, 5), sharey=True)
-    colors = ['tab:red', 'tab:blue', 'tab:green', 'tab:orange']  # Colors for different models
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']  # Colors for different models
 
     for i, level in enumerate(contention_levels):
         for model_idx, (temp_datas, stats_data) in enumerate(zip(temp_data_list, stats_data_list)):
@@ -82,9 +82,9 @@ ssdlite_stats_df = pd.read_csv('./SSDLite/stats_SSDlite.csv', parse_dates=['star
 
 
 # Prepare data lists for the plotting function
-temp_data_list = [temp_data_yolov8, temp_data_effdet, temp_data_faserrcnn, temp_data_ssdlite]
-stats_data_list = [yolov8_stats_df, efficientdet_stats_df, faserrcnn_stats_df, ssdlite_stats_df]
-model_names = ['YOLOv8', 'EfficientDet', 'FasterRCNN', 'SSDLite']
+temp_data_list = [temp_data_effdet, temp_data_yolov8, temp_data_faserrcnn, temp_data_ssdlite]
+stats_data_list = [efficientdet_stats_df, yolov8_stats_df, faserrcnn_stats_df, ssdlite_stats_df]
+model_names = ['EfficientDet','YOLOv8', 'FasterRCNN', 'SSDLite']
 contention_levels = [600, 1000, 1400, 1800]  # Example contention levels
 
 # Call the plotting function
