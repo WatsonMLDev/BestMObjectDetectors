@@ -51,18 +51,40 @@ soc_temp_paths_effdet = [
     './EfficientDet/soc_EfficientDet_temperatures_4.csv'
 ]
 
+soc_temp_paths_faserrcnn = [
+    './FasterRCNN/soc_FasterRCNN_temperatures_1.csv',
+    './FasterRCNN/soc_FasterRCNN_temperatures_2.csv',
+    './FasterRCNN/soc_FasterRCNN_temperatures_3.csv',
+    './FasterRCNN/soc_FasterRCNN_temperatures_4.csv'
+]
+
+soc_temp_paths_ssdlite = [
+    './SSDLite/soc_SSDlite_temperatures_1.csv',
+    './SSDLite/soc_SSDlite_temperatures_2.csv',
+    './SSDLite/soc_SSDlite_temperatures_3.csv',
+    './SSDLite/soc_SSDlite_temperatures_4.csv'
+]
+
+
+
 # Load temperature data
 temp_data_yolov8 = load_temperature_data(soc_temp_paths_yolov8)
 temp_data_effdet = load_temperature_data(soc_temp_paths_effdet)
+temp_data_faserrcnn = load_temperature_data(soc_temp_paths_faserrcnn)
+temp_data_ssdlite = load_temperature_data(soc_temp_paths_ssdlite)
+
 
 # Load stats data
 yolov8_stats_df = pd.read_csv('./Yolo/stats_YOLOv8.csv', parse_dates=['start_time', 'end_time'])
 efficientdet_stats_df = pd.read_csv('./EfficientDet/stats_EfficientDet.csv', parse_dates=['start_time', 'end_time'])
+faserrcnn_stats_df = pd.read_csv('./FasterRCNN/stats_FasterRCNN.csv', parse_dates=['start_time', 'end_time'])
+ssdlite_stats_df = pd.read_csv('./SSDLite/stats_SSDlite.csv', parse_dates=['start_time', 'end_time'])
+
 
 # Prepare data lists for the plotting function
-temp_data_list = [temp_data_yolov8, temp_data_effdet]
-stats_data_list = [yolov8_stats_df, efficientdet_stats_df]
-model_names = ['YOLOv8', 'EfficientDet']
+temp_data_list = [temp_data_yolov8, temp_data_effdet, temp_data_faserrcnn, temp_data_ssdlite]
+stats_data_list = [yolov8_stats_df, efficientdet_stats_df, faserrcnn_stats_df, ssdlite_stats_df]
+model_names = ['YOLOv8', 'EfficientDet', 'FasterRCNN', 'SSDLite']
 contention_levels = [600, 1000, 1400, 1800]  # Example contention levels
 
 # Call the plotting function

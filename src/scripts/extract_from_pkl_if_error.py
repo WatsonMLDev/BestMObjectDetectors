@@ -1,30 +1,55 @@
+import torch
+from torchvision.ops import nms
+import pickle
 import csv
 import os
-import pickle
-
-import torch
-import torchvision.transforms as T
+import sys
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from torchvision.datasets import CocoDetection
-from torchvision.ops import nms
+import torchvision.transforms as T
 
 
-def load_and_process_predictions(temp_predictions_file, iou_thresh=0.5, conf_thresh=0.5):
+# Set device to GPU if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
+def load_and_process_predictions(temp_predictions_file, processed_file, iou_thresh=0.5, conf_thresh=0.5):
     predictions = []
+    total_entries = 0
+    processed_entries = 0
+
+    # First, get the total number of entries for progress indication
     with open(temp_predictions_file, 'rb') as f:
         while True:
             length_bytes = f.read(4)
             if not length_bytes:
                 break  # End of file reached
+            total_entries += 1
+            length = int.from_bytes(length_bytes, byteorder='big')
+            f.read(length)  # Skip the content for now
+
+    # Now, process each entry and repickle
+    with open(temp_predictions_file, 'rb') as f, open(processed_file, 'wb') as out_f:
+        for _ in range(total_entries):
+            length_bytes = f.read(4)
             length = int.from_bytes(length_bytes, byteorder='big')
             data = f.read(length)
-            if not data:
-                break  # Ensure that data read matches the length expected
             prediction = pickle.loads(data)
-            # Apply NMS and thresholding to each prediction immediately after loading
             nms_prediction = apply_nms_to_predictions(prediction, iou_thresh, conf_thresh)
-            predictions.extend(nms_prediction)  # Extend with processed predictions
+            predictions.extend(nms_prediction)
+
+            # Repickle the data immediately to save space
+            # processed_data = pickle.dumps(nms_prediction)
+            # out_f.write(len(processed_data).to_bytes(4, byteorder='big'))
+            # out_f.write(processed_data)
+
+            # Print progress
+            processed_entries += 1
+            sys.stdout.write(f'\rProcessed {processed_entries}/{total_entries} entries.')
+            sys.stdout.flush()
+
+    print()  # Newline after progress output
     return predictions
 
 
@@ -58,28 +83,42 @@ def save_results(coco_stats, model_type, start_of_test, end_of_test, average_amb
                          f"{coco_stats[3]:.3f}", f"{coco_stats[4]:.3f}", f"{coco_stats[5]:.3f}", start_of_test,
                          end_of_test, average_ambient_temp])
 
-# Convert the existing predictions to tensors
-def prepare_for_nms(predictions):
-    boxes = torch.stack([torch.tensor(pred['bbox']) for pred in predictions])
-    scores = torch.tensor([pred['score'] for pred in predictions])
-    labels = torch.tensor([pred['category_id'] for pred in predictions])
-    return boxes, scores, labels
 
-# Apply NMS to the predictions
 def apply_nms_to_predictions(predictions, iou_thresh=0.5, conf_thresh=0.5):
-    boxes, scores, labels = prepare_for_nms(predictions)
+    if not predictions:
+        return []
+
+    # Extract elements from prediction dictionaries
+    boxes = [pred['bbox'] for pred in predictions]
+    scores = [pred['score'] for pred in predictions]
+    labels = [pred['category_id'] for pred in predictions]
+    image_ids = [pred['image_id'] for pred in predictions]
+
+    # Check if the list is empty after extracting
+    if not boxes or not scores or not labels:
+        return []
+
+    # Convert to tensors and ensure correct dimensions and types
+    boxes = torch.tensor(boxes, dtype=torch.float32)
+    scores = torch.tensor(scores, dtype=torch.float32)
+    labels = torch.tensor(labels, dtype=torch.int64)
+
+    # Ensure boxes is a 2D tensor [num_boxes, 4]
+    if boxes.dim() == 1:
+        boxes = boxes.unsqueeze(0)
 
     # Apply NMS
-    keep = nms(boxes, scores, iou_thresh)
+    keep_indices = nms(boxes, scores, iou_thresh)
 
-    # Select only the detections that were kept by NMS
+    # Filter predictions based on NMS results and confidence threshold
     nms_predictions = []
-    for idx in keep:
-        if scores[idx] >= conf_thresh:
+    for idx in keep_indices:
+        if scores[idx] > conf_thresh:
             nms_predictions.append({
-                'bbox': boxes[idx].tolist(),  # Convert tensor back to list
-                'score': scores[idx].item(),  # Convert tensor to single float value
-                'category_id': labels[idx].item()  # Convert tensor to single int value
+                'image_id': image_ids[idx],
+                'category_id': labels[idx].item(),
+                'bbox': boxes[idx].tolist(),
+                'score': scores[idx].item()
             })
 
     return nms_predictions
@@ -96,7 +135,14 @@ val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=Fals
 coco_gt = COCO(val_annotations_path)
 
 
-coco_predictions = load_and_process_predictions("../results/ssdlite/predictions_SSDlite_1.pkl")
+# Process predictions with NMS and repickle them
+processed_predictions_file = "../results/ssdlite/processed_predictions_SSDlite_5.pkl"
+coco_predictions = load_and_process_predictions(
+    "../results/ssdlite/processed_predictions_SSDlite_4.pkl",
+    processed_predictions_file,
+    iou_thresh=0.7,
+    conf_thresh=0.5
+)
 
 # Continue with COCO evaluation and result saving...
 coco_stats = perform_coco_evaluation(coco_gt, coco_predictions)
