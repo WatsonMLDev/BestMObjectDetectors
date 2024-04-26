@@ -20,21 +20,22 @@ def plot_temperature_data_flexible(temp_data_list, stats_data_list, model_names,
         for model_idx, (temp_datas, stats_data) in enumerate(zip(temp_data_list, stats_data_list)):
             start_time = stats_data['start_time'].iloc[i]
             temp_data = temp_datas[i]  # Select the DataFrame for the current contention level
+
+            # Calculate the elapsed time since the start and reset the start to zero
             temp_data['Elapsed Time (s)'] = (temp_data['Timestamp'] - start_time).dt.total_seconds()
-            
+            temp_data['Elapsed Time (s)'] -= temp_data['Elapsed Time (s)'].min()  # Resetting start to zero
+
             axs[i].plot(temp_data['Elapsed Time (s)'], temp_data['SoC Temperature (C)'],
                         label=f'{model_names[model_idx]} (Room Temp: {stats_data["average_ambient_temp"].iloc[i]:.2f}°C)',
                         color=colors[model_idx % len(colors)])
-            
+
             axs[i].set_title(f'Contention {level} MHz Temperature')
             axs[i].set_xlabel('Time (seconds from start)')
             axs[i].set_ylabel('Temperature (°C)')
             axs[i].legend()
             axs[i].grid(True)
-    
+
     plt.tight_layout()
-    
-    # save the plot
     plt.savefig('temperature_plot.png')
 
 # Paths to temperature CSV files for each model
